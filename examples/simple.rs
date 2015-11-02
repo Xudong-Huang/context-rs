@@ -8,7 +8,7 @@ use context::{Context, Stack};
 
 const STACK_SIZE: usize = 2 * 1024 * 1024; // 2MB
 
-fn init_fn(arg: usize, f: *mut usize) -> ! {
+fn init_fn(arg: usize, f: *mut usize) {
     // Transmute it back to the Box<Box<FnBox()>>
     {
         let func: Box<Box<FnBox()>> = unsafe {

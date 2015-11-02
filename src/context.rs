@@ -16,7 +16,7 @@ pub struct Context {
     regs: Registers,
 }
 
-pub type InitFn = fn(usize, *mut usize) -> !; // first argument is task handle, second is thunk ptr
+pub type InitFn = fn(usize, *mut usize); // first argument is task handle, second is thunk ptr
 
 impl Context {
     pub fn empty() -> Context {
@@ -81,14 +81,13 @@ impl Context {
     /// Load the context and switch. This function will never return.
     ///
     /// It is equivalent to `Context::swap(&mut dummy_context, &to_context)`.
-    pub fn load(to_context: &Context) -> ! {
+    #[inline(always)]
+    pub fn load(to_context: &Context) {
         let regs: &Registers = &to_context.regs;
 
         unsafe {
             load_registers(regs);
         }
-
-        unreachable!("Should never reach here");
     }
 }
 
@@ -101,7 +100,7 @@ mod test {
 
     const MIN_STACK: usize = 2 * 1024 * 1024;
 
-    fn init_fn(arg: usize, f: *mut usize) -> ! {
+    fn init_fn(arg: usize, f: *mut usize) {
         let func: fn() = unsafe {
             transmute(f)
         };

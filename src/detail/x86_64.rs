@@ -60,7 +60,7 @@ pub fn initialize_call_frame(regs: &mut Registers, fptr: InitFn, arg: usize, arg
         asm!("
             mov %r12, %rdi
             mov %r13, %rsi
-            push %r14
+            mov %r14, 8(%rsp)
         "
         :
         :
