@@ -26,11 +26,6 @@ fn main() {
     let stk = Stack::new(MIN_STACK);
     let ctx = Context::new(init_fn, unsafe { transmute(&cur)  }, unsafe { transmute(callback)  }, stk.end()); 
 
-    let mut _no_use = Box::new(true);
-
     Context::save(&mut cur);
-    if *_no_use {
-        *_no_use = false;
-        Context::load(&ctx);
-    }
+    Context::load(&ctx);
 }

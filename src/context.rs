@@ -112,33 +112,34 @@ mod test {
 
     #[test]
     fn test_swap_context() {
+        static mut VAL: bool = false;
         let mut cur = Context::empty();
 
-        fn callback() {}
+        fn callback() {
+            unsafe { VAL = true; }
+        }
 
         let stk = Stack::new(MIN_STACK);
         let ctx = Context::new(init_fn, unsafe { transmute(&cur) }, unsafe { transmute(callback) }, stk.end());
 
         Context::swap(&mut cur, &ctx);
+        unsafe { assert!(VAL); }
     }
 
     #[test]
     fn test_load_save_context() {
+        static mut VAL: bool = false;
         let mut cur = Context::empty();
 
         fn callback() {
-            println!("asdfasdf");
+            unsafe { VAL = true; }
         }
 
         let stk = Stack::new(MIN_STACK);
         let ctx = Context::new(init_fn, unsafe { transmute(&cur) }, unsafe { transmute(callback) }, stk.end());
 
-        let mut _no_use = Box::new(true);
-
         Context::save(&mut cur);
-        if *_no_use {
-            *_no_use = false;
-            Context::load(&ctx);
-        }
+        Context::load(&ctx);
+        unsafe { assert!(VAL); }
     }
 }
