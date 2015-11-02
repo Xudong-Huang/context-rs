@@ -15,5 +15,5 @@ fn main() {
         Context::load(&context);
     }
 
-    println!("Not it becomes true");
+    println!("Now it becomes true");
 }

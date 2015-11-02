@@ -117,7 +117,7 @@ mod test {
 
         fn callback() {}
 
-        let mut stk = Stack::new(MIN_STACK);
+        let stk = Stack::new(MIN_STACK);
         let ctx = Context::new(init_fn, unsafe { transmute(&cur) }, unsafe { transmute(callback) }, stk.end());
 
         Context::swap(&mut cur, &ctx);
@@ -129,7 +129,7 @@ mod test {
 
         fn callback() {}
 
-        let mut stk = Stack::new(MIN_STACK);
+        let stk = Stack::new(MIN_STACK);
         let ctx = Context::new(init_fn, unsafe { transmute(&cur) }, unsafe { transmute(callback) }, stk.end());
 
         let mut _no_use = Box::new(true);
