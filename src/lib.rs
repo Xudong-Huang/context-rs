@@ -11,6 +11,4 @@ pub use stack::Stack;
 pub mod context;
 pub mod stack;
 mod sys;
-#[cfg(target_arch = "x86_64")]
-mod simd;
 mod detail;

@@ -1,8 +1,16 @@
-use libc;
-use simd;
-
 use detail::{align_down, mut_offset};
 use context::InitFn;
+
+#[repr(simd)]
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct u32x4(u32, u32, u32, u32);
+
+impl u32x4 {
+    pub fn new(a: u32, b: u32, c: u32, d: u32) -> u32x4 {
+        u32x4(a, b, c, d)
+    }
+}
 
 // windows requires saving more registers (both general and XMM), so the windows
 // register context must be larger.
@@ -10,8 +18,8 @@ use context::InitFn;
 #[repr(C)]
 #[derive(Debug)]
 pub struct Registers {
-    gpr: [libc::uintptr_t; 14],
-    _xmm: [simd::u32x4; 10]
+    gpr: [usize; 14],
+    _xmm: [u32x4; 10]
 }
 
 #[cfg(windows)]
@@ -19,7 +27,7 @@ impl Registers {
     pub fn new() -> Registers {
         Registers {
             gpr: [0; 14],
-            _xmm: [simd::u32x4::new(0,0,0,0); 10]
+            _xmm: [u32x4::new(0,0,0,0); 10]
         }
     }
 }
@@ -28,8 +36,8 @@ impl Registers {
 #[repr(C)]
 #[derive(Debug)]
 pub struct Registers {
-    gpr: [libc::uintptr_t; 10],
-    _xmm: [simd::u32x4; 6]
+    gpr: [usize; 10],
+    _xmm: [u32x4; 6]
 }
 
 #[cfg(not(windows))]
@@ -37,12 +45,12 @@ impl Registers {
     pub fn new() -> Registers {
         Registers {
             gpr: [0; 10],
-            _xmm: [simd::u32x4::new(0,0,0,0); 6]
+            _xmm: [u32x4::new(0,0,0,0); 6]
         }
     }
 }
 
-pub fn initialize_call_frame(regs: &mut Registers, fptr: InitFn, arg: usize, arg2: *mut libc::c_void, sp: *mut usize) {
+pub fn initialize_call_frame(regs: &mut Registers, fptr: InitFn, arg: usize, arg2: *mut usize, sp: *mut usize) {
     // extern { fn rust_bootstrap_green_task(); } // use an indirection because the call contract differences between windows and linux
     // TODO: use rust's condition compile attribute instead
 
@@ -90,22 +98,22 @@ pub fn initialize_call_frame(regs: &mut Registers, fptr: InitFn, arg: usize, arg
     unsafe { *sp = 0; }
 
     debug!("creating call framenn");
-    debug!("fptr {:#x}", fptr as libc::uintptr_t);
+    debug!("fptr {:#x}", fptr as usize);
     debug!("arg {:#x}", arg);
     debug!("sp {:?}", sp);
 
     // These registers are frobbed by rust_bootstrap_green_task into the right
     // location so we can invoke the "real init function", `fptr`.
-    regs.gpr[RUSTRT_R12] = arg as libc::uintptr_t;
-    regs.gpr[RUSTRT_R13] = arg2 as libc::uintptr_t;
-    regs.gpr[RUSTRT_R14] = fptr as libc::uintptr_t;
+    regs.gpr[RUSTRT_R12] = arg;
+    regs.gpr[RUSTRT_R13] = arg2 as usize;
+    regs.gpr[RUSTRT_R14] = fptr as usize;
 
     // These registers are picked up by the regular context switch paths. These
     // will put us in "mostly the right context" except for frobbing all the
     // arguments to the right place. We have the small trampoline code inside of
     // rust_bootstrap_green_task to do that.
-    regs.gpr[RUSTRT_RSP] = mut_offset(sp, -2) as libc::uintptr_t;
-    regs.gpr[RUSTRT_IP] = bootstrap_green_task as libc::uintptr_t;
+    regs.gpr[RUSTRT_RSP] = mut_offset(sp, -2) as usize;
+    regs.gpr[RUSTRT_IP] = bootstrap_green_task as usize;
 
     unsafe {
         *mut_offset(sp, -2) = 0; // Frame pointer

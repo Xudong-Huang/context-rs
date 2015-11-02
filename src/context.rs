@@ -8,30 +8,20 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use stack::Stack;
-use std::usize;
-
 use detail::{Registers, initialize_call_frame, swap_registers, load_registers, save_registers};
-
-use libc;
-
-use sys;
 
 #[derive(Debug)]
 pub struct Context {
     /// Hold the registers while the task or scheduler is suspended
     regs: Registers,
-    /// Lower bound and upper bound for the stack
-    stack_bounds: Option<(usize, usize)>,
 }
 
-pub type InitFn = extern "C" fn(usize, *mut libc::c_void) -> !; // first argument is task handle, second is thunk ptr
+pub type InitFn = extern "C" fn(usize, *mut usize) -> !; // first argument is task handle, second is thunk ptr
 
 impl Context {
     pub fn empty() -> Context {
         Context {
             regs: Registers::new(),
-            stack_bounds: None,
         }
     }
 
@@ -44,32 +34,17 @@ impl Context {
     /// FIXME: this is basically an awful the interface. The main reason for
     ///        this is to reduce the number of allocations made when a green
     ///        task is spawned as much as possible
-    pub fn new(init: InitFn, arg: usize, start: *mut libc::c_void, stack: &mut Stack) -> Context {
+    pub fn new(init: InitFn, arg: usize, start: *mut usize, stack: *const usize) -> Context {
         let mut ctx = Context::empty();
         ctx.init_with(init, arg, start, stack);
         ctx
     }
 
-    pub fn init_with(&mut self, init: InitFn, arg: usize, start: *mut libc::c_void, stack: &mut Stack) {
-        let sp: *const usize = stack.end();
-        let sp: *mut usize = sp as *mut usize;
+    pub fn init_with(&mut self, init: InitFn, arg: usize, start: *mut usize, stack: *const usize) {
+        let sp: *mut usize = stack as *mut usize;
         // Save and then immediately load the current context,
-        // which we will then modify to call the given function when restored
-
+        // which we will then modify to call the given function when restoredtack
         initialize_call_frame(&mut self.regs, init, arg, start, sp);
-
-        // Scheduler tasks don't have a stack in the "we allocated it" sense,
-        // but rather they run on pthreads stacks. We have complete control over
-        // them in terms of the code running on them (and hopefully they don't
-        // overflow). Additionally, their coroutine stacks are listed as being
-        // zero-length, so that's how we detect what's what here.
-        let stack_base: *const usize = stack.start();
-        self.stack_bounds =
-            if sp as libc::uintptr_t == stack_base as libc::uintptr_t {
-                None
-            } else {
-                Some((stack_base as usize, sp as usize))
-            };
     }
 
     /// Switch contexts
@@ -86,23 +61,9 @@ impl Context {
             &Context { regs: ref r, .. } => r
         };
 
-        debug!("noting the stack limit and doing raw swap");
+        debug!("register raw swap");
 
         unsafe {
-            // Right before we switch to the new context, set the new context's
-            // stack limit in the OS-specified TLS slot. This also  means that
-            // we cannot call any more rust functions after record_stack_bounds
-            // returns because they would all likely fail due to the limit being
-            // invalid for the current task. Lucky for us `rust_swap_registers`
-            // is a C function so we don't have to worry about that!
-            //
-            match in_context.stack_bounds {
-                Some((lo, hi)) => sys::stack::record_rust_managed_stack_bounds(lo, hi),
-                // If we're going back to one of the original contexts or
-                // something that's possibly not a "normal task", then reset
-                // the stack limit to 0 to make morestack never fail
-                None => sys::stack::record_rust_managed_stack_bounds(0, usize::MAX),
-            }
             swap_registers(out_regs, in_regs)
         }
     }
@@ -124,21 +85,6 @@ impl Context {
         let regs: &Registers = &to_context.regs;
 
         unsafe {
-            // Right before we switch to the new context, set the new context's
-            // stack limit in the OS-specified TLS slot. This also  means that
-            // we cannot call any more rust functions after record_stack_bounds
-            // returns because they would all likely fail due to the limit being
-            // invalid for the current task. Lucky for us `rust_swap_registers`
-            // is a C function so we don't have to worry about that!
-            //
-            match to_context.stack_bounds {
-                Some((lo, hi)) => sys::stack::record_rust_managed_stack_bounds(lo, hi),
-                // If we're going back to one of the original contexts or
-                // something that's possibly not a "normal task", then reset
-                // the stack limit to 0 to make morestack never fail
-                None => sys::stack::record_rust_managed_stack_bounds(0, usize::MAX),
-            }
-
             load_registers(regs);
         }
 
@@ -148,8 +94,6 @@ impl Context {
 
 #[cfg(test)]
 mod test {
-    use libc;
-
     use std::mem::transmute;
 
     use stack::Stack;
@@ -157,7 +101,7 @@ mod test {
 
     const MIN_STACK: usize = 2 * 1024 * 1024;
 
-    extern "C" fn init_fn(arg: usize, f: *mut libc::c_void) -> ! {
+    extern "C" fn init_fn(arg: usize, f: *mut usize) -> ! {
         let func: fn() = unsafe {
             transmute(f)
         };
@@ -174,7 +118,7 @@ mod test {
         fn callback() {}
 
         let mut stk = Stack::new(MIN_STACK);
-        let ctx = Context::new(init_fn, unsafe { transmute(&cur) }, unsafe { transmute(callback) }, &mut stk);
+        let ctx = Context::new(init_fn, unsafe { transmute(&cur) }, unsafe { transmute(callback) }, stk.end());
 
         Context::swap(&mut cur, &ctx);
     }
@@ -186,7 +130,7 @@ mod test {
         fn callback() {}
 
         let mut stk = Stack::new(MIN_STACK);
-        let ctx = Context::new(init_fn, unsafe { transmute(&cur) }, unsafe { transmute(callback) }, &mut stk);
+        let ctx = Context::new(init_fn, unsafe { transmute(&cur) }, unsafe { transmute(callback) }, stk.end());
 
         let mut _no_use = Box::new(true);
 
