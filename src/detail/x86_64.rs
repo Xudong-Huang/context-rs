@@ -92,7 +92,7 @@ pub fn initialize_call_frame(regs: &mut Registers, fptr: InitFn, arg: usize, arg
     // static RUSTRT_R15: usize = 7;
 
     let sp = align_down(sp);
-    let sp = mut_offset(sp, -1);
+    let sp = mut_offset(sp, -2);
 
     // The final return address. 0 indicates the bottom of the stack
     unsafe { *sp = 0; }

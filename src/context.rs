@@ -16,7 +16,7 @@ pub struct Context {
     regs: Registers,
 }
 
-pub type InitFn = extern "C" fn(usize, *mut usize) -> !; // first argument is task handle, second is thunk ptr
+pub type InitFn = fn(usize, *mut usize) -> !; // first argument is task handle, second is thunk ptr
 
 impl Context {
     pub fn empty() -> Context {
@@ -101,7 +101,7 @@ mod test {
 
     const MIN_STACK: usize = 2 * 1024 * 1024;
 
-    extern "C" fn init_fn(arg: usize, f: *mut usize) -> ! {
+    fn init_fn(arg: usize, f: *mut usize) -> ! {
         let func: fn() = unsafe {
             transmute(f)
         };

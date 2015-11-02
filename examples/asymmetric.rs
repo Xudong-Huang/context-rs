@@ -63,7 +63,7 @@ thread_local!(static STACK_POOL: UnsafeCell<StackPool> = UnsafeCell::new(StackPo
 struct ForceUnwind;
 
 /// Initialization function for make context
-extern "C" fn coroutine_initialize(_: usize, f: *mut usize) -> ! {
+fn coroutine_initialize(_: usize, f: *mut usize) -> ! {
     {
         let func: Box<Box<FnBox()>> = unsafe {
             Box::from_raw(f as *mut Box<FnBox()>)
