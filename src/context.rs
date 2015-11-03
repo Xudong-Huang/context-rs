@@ -127,7 +127,9 @@ mod test {
     fn test_load_save_context() {
         let mut cur = Context::empty();
 
-        fn callback() {}
+        fn callback() {
+            println!("asdfasdf");
+        }
 
         let stk = Stack::new(MIN_STACK);
         let ctx = Context::new(init_fn, unsafe { transmute(&cur) }, unsafe { transmute(callback) }, stk.end());

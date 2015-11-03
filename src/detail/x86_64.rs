@@ -60,7 +60,7 @@ pub fn initialize_call_frame(regs: &mut Registers, fptr: InitFn, arg: usize, arg
         asm!("
             mov %r12, %rdi
             mov %r13, %rsi
-            mov %r14, 8(%rsp)
+            push %r14
         "
         :
         :
@@ -74,7 +74,7 @@ pub fn initialize_call_frame(regs: &mut Registers, fptr: InitFn, arg: usize, arg
         asm!("
             mov %r12, %rcx
             mov %r13, %rdx
-            mov %r14, 8(%rsp)
+            push %r14
         "
         :
         :
@@ -83,12 +83,11 @@ pub fn initialize_call_frame(regs: &mut Registers, fptr: InitFn, arg: usize, arg
     }
 
     // Redefinitions from rt/arch/x86_64/regs.h
-    static RUSTRT_RSP: usize = 1;
-    static RUSTRT_IP: usize = 8;
-    static RUSTRT_RBP: usize = 2;
-    static RUSTRT_R12: usize = 4;
-    static RUSTRT_R13: usize = 5;
-    static RUSTRT_R14: usize = 6;
+    const RUSTRT_RSP: usize = 1;
+    const RUSTRT_RBP: usize = 2;
+    const RUSTRT_R12: usize = 4;
+    const RUSTRT_R13: usize = 5;
+    const RUSTRT_R14: usize = 6;
     // static RUSTRT_R15: usize = 7;
 
     let sp = align_down(sp);
@@ -113,10 +112,10 @@ pub fn initialize_call_frame(regs: &mut Registers, fptr: InitFn, arg: usize, arg
     // arguments to the right place. We have the small trampoline code inside of
     // rust_bootstrap_green_task to do that.
     regs.gpr[RUSTRT_RSP] = mut_offset(sp, -2) as usize;
-    regs.gpr[RUSTRT_IP] = bootstrap_green_task as usize;
 
+    // this is prepared for the swap context
     unsafe {
-        *mut_offset(sp, -2) = 0; // Frame pointer
+        *mut_offset(sp, -2) = bootstrap_green_task as usize;
         *mut_offset(sp, -1) = bootstrap_green_task as usize;
     }
 
