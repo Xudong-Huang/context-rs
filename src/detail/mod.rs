@@ -23,7 +23,7 @@
 // stacks are disabled.
 
 #[cfg(target_arch = "x86_64")]
-pub use self::x86_64::{Registers, swap_registers, save_registers, load_registers, initialize_call_frame};
+pub use self::x86_64::{Registers, swap_registers, load_registers, initialize_call_frame};
 
 #[cfg(target_arch = "x86")]
 pub use self::x86::{Registers, swap_registers, save_registers, load_registers, initialize_call_frame};
