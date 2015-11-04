@@ -138,6 +138,10 @@ mod test {
         let stk = Stack::new(MIN_STACK);
         let ctx = Context::new(init_fn, unsafe { transmute(&cur) }, unsafe { transmute(callback) }, stk.end());
 
+        // the save and load function can't run as before
+        // will always return back to the load due to the stack changes
+        // this has some effect on the yield implmentation
+        // and the save is no longer has such purpose to exist
         Context::save(&mut cur);
         Context::load(&ctx);
         unsafe { assert!(VAL); }
